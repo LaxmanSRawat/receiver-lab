@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 
 from core import build_profiles, load_routes, player_summary, simulate
 from gravity import load_frames, player_gravity
@@ -39,7 +40,7 @@ h1, h2, h3, .bs {{ font-family: 'Big Shoulders Display', sans-serif !important; 
   font-family: 'Big Shoulders Display'; font-weight: 800; color: #fff; font-size: 1.1rem; }}
 .field .ez.a {{ left: 0; }} .field .ez.b {{ right: 0; }}
 .ball {{ position: absolute; top: 50%; width: 34px; height: 21px; margin: -10px 0 0 -17px; border-radius: 50%;
-  background: #8B4513; box-shadow: inset 0 0 0 2px #5C2E0B; left: var(--to); animation: drive 1.6s cubic-bezier(.2,.8,.2,1) both; }}
+  background: #8B4513; box-shadow: inset 0 0 0 2px #5C2E0B; left: var(--to); animation: drive 1.8s cubic-bezier(.2,.8,.2,1) .7s both; }}
 .ball::after {{ content: ""; position: absolute; left: 9px; right: 9px; top: 9px; height: 2px; background: #fff; }}
 @keyframes drive {{ from {{ left: 50%; transform: rotate(0deg); }} to {{ left: var(--to); transform: rotate(360deg); }} }}
 @media (prefers-reduced-motion: reduce) {{ .ball {{ animation: none; }} }}
@@ -74,7 +75,13 @@ with st.sidebar:
     st.caption("Data: 2021 NFL weeks 1–8 (Big Data Bowl tracking and PFF charting) plus public nflverse "
                "play-by-play. Headshots and logos load from NFL and ESPN image servers.")
 
-hero = st.container()
+st.html("""
+<div class="hero">
+<h1>Receiver Group Lab</h1>
+<p>Build two receiving groups from any 2021 teams, then press Kick off. We play them 10,000 times against the
+same average quarterback and show which group gains more yards, and how often.</p>
+</div>
+""")
 
 pool = summ[summ.routes >= min_routes].sort_values("routes", ascending=False)
 label = {r.nflId: f"{r['name']} ({r.team}), {r.routes} routes, {r.yprr:.2f} yds/route" for _, r in pool.iterrows()}
@@ -86,27 +93,41 @@ def card(nid: int) -> str:
     return (f'<div class="card" style="--tc:{m.team_color}">'
             f'<img class="hs" src="{m.headshot}" alt="">'
             f'<div><div class="nm">{html.escape(p["name"])}</div>'
-            f'<div class="meta">{p.pos}, {html.escape(m.team_name)}. {p.routes} routes, {p.yprr:.2f} yards per route</div></div>'
+            f'<div class="meta">{p.pos}, {html.escape(m.team_name)}. {p.routes} routes, {p.targets} targets, '
+            f'{p.catches} catches, {p.yards:.0f} yards, {p.yprr:.2f} yards per route</div></div>'
             f'<img class="logo" src="{m.team_logo_espn}" alt="{html.escape(m.team_name)} logo"></div>')
+
+
+def slot(title, pos, idx, key):
+    """One position pick with the player's card right under it."""
+    options = by_pos[pos]
+    nid = st.selectbox(title, options, index=min(idx, len(options) - 1), format_func=label.get, key=key)
+    st.html(card(nid))
+    return (nid, pos)
 
 
 def picker(col, key, offset):
     with col:
         st.html(f'<div class="grp" style="color:{COLORS[key]}">Group {key}</div>')
-        rb = st.selectbox("Running back", by_pos["RB"], index=offset, format_func=label.get, key=f"rb{key}")
-        te = st.selectbox("Tight end", by_pos["TE"], index=offset, format_func=label.get, key=f"te{key}")
-        wr = st.multiselect("Three wide receivers", by_pos["WR"], default=by_pos["WR"][offset * 3:offset * 3 + 3],
-                            max_selections=3, format_func=label.get, key=f"wr{key}")
-        lineup = [(rb, "RB"), (te, "TE")] + [(w, "WR") for w in wr]
-        st.html("".join(card(i) for i, _ in lineup))
+        lineup = [slot("Running back", "RB", offset, f"rb{key}"), slot("Tight end", "TE", offset, f"te{key}")]
+        lineup += [slot(f"Wide receiver {j + 1}", "WR", offset * 3 + j, f"wr{key}{j}") for j in range(3)]
     return lineup
 
 
 ca, cb = st.columns(2, gap="large")
 lineup_a, lineup_b = picker(ca, "A", 0), picker(cb, "B", 1)
-if len(lineup_a) != 5 or len(lineup_b) != 5:
-    with hero:
-        st.html('<div class="hero"><h1>Receiver Group Lab</h1><p>Pick three wide receivers for each group to start the game.</p></div>')
+ids = [i for i, _ in lineup_a + lineup_b]
+if len(set(ids)) != len(ids):
+    st.warning("A player is picked twice. Each player can appear only once across both groups.")
+    st.stop()
+
+signature = (tuple(ids), p_man, attempts)
+_, mid, _ = st.columns([1, 2, 1])
+if mid.button("Kick off", type="primary", width="stretch"):
+    st.session_state.kicked = signature
+    st.session_state.scroll_to_result = True
+if st.session_state.get("kicked") != signature:
+    st.info("Your groups are set. Press Kick off to play them.")
     st.stop()
 
 sa = simulate(prof, lineup_a, p_man, n_games, attempts, seed=1)
@@ -114,13 +135,11 @@ sb = simulate(prof, lineup_b, p_man, n_games, attempts, seed=2)
 diff = sa["game_yards"] - sb["game_yards"]
 p_a = (diff > 0).mean()
 
-with hero:
-    to = 8 + 84 * p_a  # field between the end zones runs from 8% to 92%
-    st.html(f"""
+to = 8 + 84 * p_a  # field between the end zones runs from 8% to 92%
+st.html(f"""
 <div class="hero">
-<h1>Receiver Group Lab</h1>
-<p>Build two receiving groups from any 2021 teams and play them against the same average quarterback.
-We played them {n_games:,} times. The ball moves toward B's end zone the more often Group A gains more yards, and toward A's end zone when Group B does.</p>
+<p>We played them {n_games:,} times. The ball moves toward B's end zone the more often Group A gains more yards,
+and toward A's end zone when Group B does.</p>
 <div class="score">
 <div><div class="side">Group A yards per game</div><div class="num">{sa['game_yards'].mean():.0f}</div></div>
 <div class="mid"><div class="side">Group A gains more in</div><div class="num">{p_a:.0%}</div></div>
@@ -132,6 +151,11 @@ We played them {n_games:,} times. The ball moves toward B's end zone the more of
 <div class="fieldnote">On the rest of the 2021 season, which the model never saw, it picked the right group in 66% of 496 real matchups. Raw stats picked right 61% of the time.</div>
 </div>
 """)
+if st.session_state.pop("scroll_to_result", False):
+    # Bring the scoreboard into view so the ball's drive plays where the user is looking.
+    components.html("<script>const f = window.parent.document.querySelectorAll('.field');"
+                    "if (f.length) f[f.length - 1].scrollIntoView({behavior: 'smooth', block: 'center'});</script>",
+                    height=0)
 
 PLOT = dict(font=dict(family="Barlow, sans-serif", color=INK), paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="#FFFFFF", margin=dict(t=40, b=10, l=10, r=10),
