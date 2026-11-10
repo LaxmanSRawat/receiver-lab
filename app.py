@@ -1,4 +1,4 @@
-"""Receiver Group Lab: pick two 1 RB / 1 TE / 3 WR groups and simulate them head to head."""
+"""What if...?: pick two 1 RB / 1 TE / 3 WR groups and simulate them head to head."""
 import html
 
 import numpy as np
@@ -10,7 +10,7 @@ import streamlit.components.v1 as components
 from core import build_profiles, load_routes, player_summary, simulate
 from gravity import load_frames, player_gravity
 
-st.set_page_config(page_title="Receiver Group Lab", page_icon="🏈", layout="wide")
+st.set_page_config(page_title="What if...?", page_icon="🏈", layout="wide")
 
 TURF, CHALK, INK, MUTED = "#0F3D2E", "#F4F6F1", "#14201B", "#5B6B63"
 COLORS = {"A": "#1D4ED8", "B": "#C8102E"}
@@ -77,7 +77,7 @@ with st.sidebar:
 
 st.html("""
 <div class="hero">
-<h1>Receiver Group Lab</h1>
+<h1>What if...?</h1>
 <p>Build two receiving groups from any 2021 teams, then press Kick off. We play them 10,000 times against the
 same average quarterback and show which group gains more yards, and how often.</p>
 <div class="fieldnote">Track record: on the rest of the 2021 season, which the model never saw, it picked the right group in 66% of 496 real matchups. Raw stats picked right 61% of the time.</div>
