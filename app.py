@@ -141,7 +141,15 @@ route, draw a catch from his catch rate, then draw yards from his real reception
 league pool. All three are split by man vs zone and shrunk toward the position average
 (60 routes / 20 targets / 15 receptions of league-average prior), because no player has more than ~42 targets.
 
-**Held-out check (fit weeks 1–5, test weeks 6–8):**
+**Main held-out check (fit weeks 1–8, test 2021 weeks 9–18 from public nflverse play-by-play):**
+""")
+    vl = pd.read_csv("data/validation_late.csv")
+    st.dataframe(vl.rename(columns={"raw_r": "raw rates r", "shrunk_r": "shrunk model r"}).round(2), hide_index=True)
+    st.markdown(f"""
+Outcome: receiving yards per team pass attempt in games with a target (nflverse has no routes). Shrinkage
+matters most for low-sample players, which is where scouts need help.
+
+**Short check (fit weeks 1–5, test weeks 6–8):**
 - Player yards per route: shrunk profiles r = **{vp.shrunk[0]:.2f}** vs raw rates r = {vp.raw[0]:.2f}
   ({vp.players[0]} players with 40+ test routes). Shrinkage helps; week-to-week receiving is noisy.
 - Team yards per attempt: simulator r = **{np.corrcoef(v.sim_ypa, v.actual_ypa)[0, 1]:.2f}** vs the team's own

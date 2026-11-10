@@ -1,6 +1,6 @@
 # Receiver Group Lab
 
-**Receiver Group Lab is a Streamlit tool that lets a scout build two pass-catching groups (1 RB, 1 TE, 3 WR) from any 2021 NFL teams and simulate them head to head, holding QB and protection constant, over 10,000 Monte Carlo games.** Each player's targets per route, catch rate and yards per catch come from NFL Big Data Bowl PFF route data joined to public nflverse play-by-play. These rates are split by man vs zone coverage and shrunk toward the position average, because no player has more than about 42 targets in weeks 1–8. The insight for scouts is that a group's value depends on who else is on the field: stacking high-volume receivers dilutes each one's targets, and the *Coverage fit* view shows which groups hold up when the defense switches between man and zone. On data the model never saw (fit weeks 1–5, test weeks 6–8), shrunk player profiles predict yards per route better than raw rates (r = 0.33 vs 0.27, 127 players). The main limits are that the data has only passing plays and 8 weeks, each player's numbers still carry his real QB and scheme, and interplay between players who never shared a field cannot be measured.
+**Receiver Group Lab is a Streamlit tool that lets a scout build two pass-catching groups (1 RB, 1 TE, 3 WR) from any 2021 NFL teams and simulate them head to head, holding QB and protection constant, over 10,000 Monte Carlo games.** Each player's targets per route, catch rate and yards per catch come from NFL Big Data Bowl PFF route data joined to public nflverse play-by-play. These rates are split by man vs zone coverage and shrunk toward the position average, because no player has more than about 42 targets in weeks 1–8. The insight for scouts is that a group's value depends on who else is on the field: stacking high-volume receivers dilutes each one's targets, and the *Coverage fit* view shows which groups hold up when the defense switches between man and zone. On data the model never saw (fit weeks 1–8, test 2021 weeks 9–18 from nflverse), shrunk player profiles predict later production far better than raw rates (r = 0.61 vs 0.36, 239 players), and the gap is widest for low-sample players (0.34 vs 0.03). The main limits are that the data has only passing plays and 8 weeks, each player's numbers still carry his real QB and scheme, and interplay between players who never shared a field cannot be measured.
 
 ## Run it
 
@@ -13,7 +13,8 @@ streamlit run app.py
 
 ```bash
 python build_data.py <path to BDB data dir> <path to nflverse play_by_play_2021.csv.gz>
-python validate.py   # held-out checks -> data/validation*.csv
+python validate.py   # weeks 1-5 -> 6-8 checks
+python validate_late.py <nflverse play_by_play_2021.csv.gz>   # weeks 1-8 -> 9-18 check
 ```
 
 The nflverse file is public: `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2021.csv.gz`.
@@ -33,7 +34,17 @@ The nflverse file is public: `https://github.com/nflverse/nflverse-data/releases
 - **Simulation.** Each attempt draws man or zone coverage, then a target in proportion to shrunk targets per route, then a catch from the shrunk catch rate. Yards are drawn from the player's own receptions with weight n/(n+15), and otherwise from his position's league pool. Each player's shrunk rates add 60 league-average routes and 20 league-average targets to his real ones.
 - **Interplay.** Within the same WR (51 WRs with 15+ routes in each condition), he gains **+1.71 yards per route** and **+8.2 points of targets per route** when the TE stays in to block. Most of this is volume, since one fewer route runner means more targets each. That is the same target competition the simulator models. It is also mixed with situation, so it is a hypothesis and not a synergy coefficient.
 
-## Validation (fit weeks 1–5, test weeks 6–8)
+## Validation
+
+**Main test: fit on weeks 1–8, test on 2021 weeks 9–18** (`validate_late.py`, public nflverse play-by-play). nflverse has no routes, so the outcome is receiving yards per team pass attempt in games where the player drew a target. Players need 5 or more such games.
+
+| Players | Raw weeks 1–8 yards/route r | Shrunk model r |
+| --- | --- | --- |
+| All (239) | 0.36 | **0.61** |
+| Under 100 routes in weeks 1–8 (121) | 0.03 | **0.34** |
+| 100+ routes in weeks 1–8 (118) | 0.60 | **0.65** |
+
+**Short test: fit on weeks 1–5, test on weeks 6–8** (`validate.py`, BDB routes only)
 
 | Check | Result |
 | --- | --- |
