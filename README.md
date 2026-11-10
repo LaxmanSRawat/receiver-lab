@@ -1,5 +1,9 @@
 # What if...?
 
+Every scout has a hunch about which receivers would light it up together. What if...? puts that hunch on the field: pick any five pass catchers from the 2021 season, play them 10,000 times, and see who actually gains the yards. On games it had never seen, it called the winner two times out of three.
+
+What if...? lets a scout pick two receiving groups (one running back, one tight end and three wide receivers) from any 2021 NFL teams and play them against each other 10,000 times with the same average quarterback. Each player's simulated passes come from his real 2021 numbers for weeks 1–8: how often he was targeted per route, how often he caught the ball, and how far he took it, split by man and zone coverage and pulled toward the position average when his sample is small. Two things matter for scouts: only one player can catch each pass, so stacking high-volume receivers shrinks each one's share, and some groups hold up against both man and zone while others fall off against one. We tested the simulator on 2021 weeks 9–18, which it never saw, and it picked the group that gained more yards in 66% of 496 real team matchups, against 61% for raw stats. The data covers only passing plays from eight weeks, each player's numbers still reflect his real quarterback, and we could not measure chemistry between players who never shared a field.
+
 Live app: https://receiver-lab-nyu-big-data-bowl.streamlit.app
 
 Pick two groups, each with a profile card for every player:
@@ -9,8 +13,6 @@ Pick two groups, each with a profile card for every player:
 Press Kick off for the 10,000-game result, then watch one simulated game pass by pass:
 
 ![Result after Kick off and the game replay](screenshots/kickoff-result-and-replay.png)
-
-What if...? lets a scout pick two receiving groups (one running back, one tight end and three wide receivers) from any 2021 NFL teams and play them against each other 10,000 times with the same average quarterback. Each player's simulated passes come from his real 2021 numbers for weeks 1–8: how often he was targeted per route, how often he caught the ball, and how far he took it, split by man and zone coverage and pulled toward the position average when his sample is small. Two things matter for scouts: only one player can catch each pass, so stacking high-volume receivers shrinks each one's share, and some groups hold up against both man and zone while others fall off against one. We tested the simulator on 2021 weeks 9–18, which it never saw, and it picked the group that gained more yards in 66% of 496 real team matchups, against 61% for raw stats. The data covers only passing plays from eight weeks, each player's numbers still reflect his real quarterback, and we could not measure chemistry between players who never shared a field.
 
 ## Run it
 
@@ -30,11 +32,12 @@ python build_gravity.py <BDB data dir>                           # positions at 
 python gravity.py                                                # defender attention checks
 python build_frames.py <BDB data dir>                            # snap-to-throw positions
 python interplay_tests.py                                        # five teammate-effect tests
+python build_playsim.py <BDB data dir>                           # real paths for the pass animation
 ```
 
 ## What's in the app
 
-The page opens with the result: each group's yards per game and how often Group A gains more, shown as a football that slides down the field toward the losing side. Below the two pickers, each chosen player appears with his headshot, team logo and season numbers.
+The page opens with the title and the simulator's track record. Below it are the two groups, with one dropdown per slot: a running back, a tight end and three wide receivers. Each dropdown lists only players at that position, and a card under it shows the chosen player's headshot, team logo and weeks 1–8 numbers. Kick off plays the two groups 10,000 times, then scrolls to a scoreboard where a football slides toward the losing side's end zone. The tabs below the scoreboard break the result down. If you change a player or a setting, the result hides until you press Kick off again.
 
 | Tab | What it shows |
 | --- | --- |
