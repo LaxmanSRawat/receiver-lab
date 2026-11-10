@@ -2,6 +2,15 @@
 
 Every scout has a hunch about which receivers would light it up together. What if...? puts that hunch on the field: pick any five pass catchers from the 2021 season, play them 10,000 times against another five, and see who actually gains the yards. On games it had never seen, it called the winner two times out of three.
 
+Questions you can settle in a couple of clicks:
+
+- What if Ja'Marr Chase took Mike Evans's spot in Tampa, next to Chris Godwin and Rob Gronkowski? Does the Bucs' group get better, or do Chase and Godwin just split the same targets?
+- What if rivals shared a huddle? Put the Chiefs' Tyreek Hill on the field with the Raiders' Darren Waller, or the Saints' Alvin Kamara with the Bucs' Mike Evans, and play them against either team's real group.
+- What if you built a dream group of Cooper Kupp, Justin Jefferson, Davante Adams, Travis Kelce and Alvin Kamara? Only one of them can catch each pass, so the app shows how much each star gives up.
+- What if the defense lives in man coverage? Slide the coverage mix and see which group holds up.
+
+Every group plays with the same average quarterback, so "joining a team" means joining that team's receivers, not its quarterback or play-calling. That keeps the comparison about the pass catchers.
+
 What if...? lets a scout pick two receiving groups (one running back, one tight end and three wide receivers) from any 2021 NFL teams and play them against each other 10,000 times with the same average quarterback. Each player's simulated passes come from his real 2021 numbers for weeks 1–8: how often he was targeted per route, how often he caught the ball, and how far he took it, split by man and zone coverage and pulled toward the position average when his sample is small. Two things matter for scouts: only one player can catch each pass, so stacking high-volume receivers shrinks each one's share, and some groups hold up against both man and zone while others fall off against one. We tested the simulator on 2021 weeks 9–18, which it never saw, and it picked the group that gained more yards in 66% of 496 real team matchups, against 61% for raw stats. The data covers only passing plays from eight weeks, each player's numbers still reflect his real quarterback, and we could not measure chemistry between players who never shared a field.
 
 Live app: https://receiver-lab-nyu-big-data-bowl.streamlit.app
