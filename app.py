@@ -1,4 +1,6 @@
 """Receiver Group Lab: pick two 1 RB / 1 TE / 3 WR groups and simulate them head to head."""
+import html
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -7,91 +9,164 @@ import streamlit as st
 from core import build_profiles, load_routes, player_summary, simulate
 from gravity import load_frames, player_gravity
 
-st.set_page_config(page_title="Receiver Group Lab", layout="wide")
-COLORS = {"A": "#2a6fdb", "B": "#e4572e"}
+st.set_page_config(page_title="Receiver Group Lab", page_icon="🏈", layout="wide")
+
+TURF, CHALK, INK, MUTED = "#0F3D2E", "#F4F6F1", "#14201B", "#5B6B63"
+COLORS = {"A": "#1D4ED8", "B": "#C8102E"}
+
+st.html(f"""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Barlow:wght@400;500;600&display=swap');
+html, body, [data-testid="stAppViewContainer"] {{ background: {CHALK}; color: {INK}; font-family: 'Barlow', sans-serif; }}
+[data-testid="stHeader"] {{ background: transparent; }}
+h1, h2, h3, .bs {{ font-family: 'Big Shoulders Display', sans-serif !important; letter-spacing: .01em; }}
+[data-testid="stSidebar"] {{ background: {TURF}; }}
+[data-testid="stSidebar"] * {{ color: #E8EFE9 !important; }}
+.block-container {{ padding-top: 1.2rem; max-width: 1200px; }}
+.hero {{ background: {TURF}; border-radius: 18px; padding: 22px 26px 18px; color: #fff; }}
+.hero h1 {{ font-size: 3.1rem; font-weight: 900; line-height: .95; margin: 0; color: #fff; }}
+.hero p {{ margin: .4rem 0 1rem; color: #CFE0D6; max-width: 62ch; }}
+.score {{ display: flex; justify-content: space-between; align-items: end; font-family: 'Big Shoulders Display'; }}
+.score .side {{ font-size: 1.05rem; font-weight: 600; color: #CFE0D6; }}
+.score .num {{ font-size: 2.6rem; font-weight: 900; line-height: 1; color: #fff; }}
+.score .mid {{ text-align: center; }}
+.score .mid .num {{ font-size: 3.4rem; }}
+.field {{ position: relative; height: 64px; margin-top: 10px; border-radius: 8px; overflow: hidden;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgba(255,255,255,.55) calc(10% - 2px) 10%),
+    linear-gradient(90deg, {COLORS['A']} 0 8%, #1E6B4A 8% 92%, {COLORS['B']} 92% 100%); }}
+.field .ez {{ position: absolute; top: 0; bottom: 0; width: 8%; display: flex; align-items: center; justify-content: center;
+  font-family: 'Big Shoulders Display'; font-weight: 800; color: #fff; font-size: 1.1rem; }}
+.field .ez.a {{ left: 0; }} .field .ez.b {{ right: 0; }}
+.ball {{ position: absolute; top: 50%; width: 34px; height: 21px; margin: -10px 0 0 -17px; border-radius: 50%;
+  background: #8B4513; box-shadow: inset 0 0 0 2px #5C2E0B; left: var(--to); animation: drive 1.6s cubic-bezier(.2,.8,.2,1) both; }}
+.ball::after {{ content: ""; position: absolute; left: 9px; right: 9px; top: 9px; height: 2px; background: #fff; }}
+@keyframes drive {{ from {{ left: 50%; transform: rotate(0deg); }} to {{ left: var(--to); transform: rotate(360deg); }} }}
+@media (prefers-reduced-motion: reduce) {{ .ball {{ animation: none; }} }}
+.fieldnote {{ font-size: .9rem; color: #CFE0D6; margin-top: 8px; }}
+.card {{ display: flex; align-items: center; gap: 12px; padding: 8px 10px; margin: 6px 0; background: #fff;
+  border-radius: 12px; border-left: 6px solid var(--tc); }}
+.card img.hs {{ width: 52px; height: 52px; border-radius: 50%; object-fit: cover; background: #E6ECE8; }}
+.card img.logo {{ width: 30px; height: 30px; margin-left: auto; }}
+.card .nm {{ font-weight: 600; font-size: 1rem; line-height: 1.1; }}
+.card .meta {{ color: {MUTED}; font-size: .85rem; }}
+.grp {{ font-family: 'Big Shoulders Display'; font-weight: 800; font-size: 1.6rem; margin: .4rem 0 .2rem; }}
+</style>
+""")
 
 
 @st.cache_resource
 def data():
     r = load_routes()
-    return r, build_profiles(r), player_summary(r)
+    meta = pd.read_csv("data/player_meta.csv").set_index("nflId")
+    return r, build_profiles(r), player_summary(r), meta
 
 
-routes, prof, summ = data()
-
-st.title("Receiver Group Lab")
-st.caption("Build two pass-catching groups from any 2021 NFL teams (weeks 1–8) and simulate them against "
-           "the same average QB and protection. Data: NFL Big Data Bowl tracking/PFF + public nflverse play-by-play.")
+routes, prof, summ, meta = data()
+s_idx = summ.set_index("nflId")
 
 with st.sidebar:
-    st.header("Scenario")
-    p_man = st.slider("Defense plays man coverage on this share of snaps", 0.0, 1.0, 0.30, 0.05)
-    attempts = st.slider("Targeted pass attempts per game", 20, 50, 35)
-    min_routes = st.slider("Only list players with at least this many routes", 0, 150, 50, 10)
+    st.markdown("### Game settings")
+    p_man = st.slider("Share of snaps the defense plays man coverage", 0.0, 1.0, 0.30, 0.05)
+    attempts = st.slider("Passes thrown to the five players per game", 20, 50, 35)
+    min_routes = st.slider("Hide players with fewer routes than", 0, 150, 50, 10)
     n_games = 10000
+    st.caption("Data: 2021 NFL weeks 1–8 (Big Data Bowl tracking and PFF charting) plus public nflverse "
+               "play-by-play. Headshots and logos load from NFL and ESPN image servers.")
+
+hero = st.container()
 
 pool = summ[summ.routes >= min_routes].sort_values("routes", ascending=False)
-label = {r.nflId: f"{r['name']} ({r.team}) · {r.routes} routes, {r.yprr:.2f} yds/route"
-         for _, r in pool.iterrows()}
+label = {r.nflId: f"{r['name']} ({r.team}), {r.routes} routes, {r.yprr:.2f} yds/route" for _, r in pool.iterrows()}
 by_pos = {p: pool[pool.pos == p].nflId.tolist() for p in ("RB", "TE", "WR")}
+
+
+def card(nid: int) -> str:
+    p, m = s_idx.loc[nid], meta.loc[nid]
+    return (f'<div class="card" style="--tc:{m.team_color}">'
+            f'<img class="hs" src="{m.headshot}" alt="">'
+            f'<div><div class="nm">{html.escape(p["name"])}</div>'
+            f'<div class="meta">{p.pos}, {html.escape(m.team_name)}. {p.routes} routes, {p.yprr:.2f} yards per route</div></div>'
+            f'<img class="logo" src="{m.team_logo_espn}" alt="{html.escape(m.team_name)} logo"></div>')
 
 
 def picker(col, key, offset):
     with col:
-        st.subheader(f"Group {key}")
-        rb = st.selectbox("RB", by_pos["RB"], index=offset, format_func=label.get, key=f"rb{key}")
-        te = st.selectbox("TE", by_pos["TE"], index=offset, format_func=label.get, key=f"te{key}")
-        wr = st.multiselect("3 WRs", by_pos["WR"], default=by_pos["WR"][offset * 3:offset * 3 + 3],
+        st.html(f'<div class="grp" style="color:{COLORS[key]}">Group {key}</div>')
+        rb = st.selectbox("Running back", by_pos["RB"], index=offset, format_func=label.get, key=f"rb{key}")
+        te = st.selectbox("Tight end", by_pos["TE"], index=offset, format_func=label.get, key=f"te{key}")
+        wr = st.multiselect("Three wide receivers", by_pos["WR"], default=by_pos["WR"][offset * 3:offset * 3 + 3],
                             max_selections=3, format_func=label.get, key=f"wr{key}")
-    return [(rb, "RB"), (te, "TE")] + [(w, "WR") for w in wr]
+        lineup = [(rb, "RB"), (te, "TE")] + [(w, "WR") for w in wr]
+        st.html("".join(card(i) for i, _ in lineup))
+    return lineup
 
 
-ca, cb = st.columns(2)
+ca, cb = st.columns(2, gap="large")
 lineup_a, lineup_b = picker(ca, "A", 0), picker(cb, "B", 1)
 if len(lineup_a) != 5 or len(lineup_b) != 5:
-    st.warning("Pick exactly 3 WRs for each group.")
+    with hero:
+        st.html('<div class="hero"><h1>Receiver Group Lab</h1><p>Pick three wide receivers for each group to start the game.</p></div>')
     st.stop()
-
-tab_sim, tab_cov, tab_inter, tab_grav, tab_method = st.tabs(
-    ["Head to head", "Coverage fit", "Interplay: TE route vs block", "Gravity (tested, not in sim)",
-     "Method & validation"])
 
 sa = simulate(prof, lineup_a, p_man, n_games, attempts, seed=1)
 sb = simulate(prof, lineup_b, p_man, n_games, attempts, seed=2)
+diff = sa["game_yards"] - sb["game_yards"]
+p_a = (diff > 0).mean()
+
+with hero:
+    to = 8 + 84 * p_a  # field between the end zones runs from 8% to 92%
+    st.html(f"""
+<div class="hero">
+<h1>Receiver Group Lab</h1>
+<p>Build two receiving groups from any 2021 teams and play them against the same average quarterback.
+The ball sits where {n_games:,} simulated games put it: the further it drives toward a group's opponent, the more often that group gained more yards.</p>
+<div class="score">
+<div><div class="side">Group A yards per game</div><div class="num">{sa['game_yards'].mean():.0f}</div></div>
+<div class="mid"><div class="side">Group A gains more in</div><div class="num">{p_a:.0%}</div></div>
+<div style="text-align:right"><div class="side">Group B yards per game</div><div class="num">{sb['game_yards'].mean():.0f}</div></div>
+</div>
+<div class="field" role="img" aria-label="Group A gains more yards in {p_a:.0%} of simulated games">
+<div class="ez a">A</div><div class="ez b">B</div><div class="ball" style="--to:{to:.1f}%"></div>
+</div>
+<div class="fieldnote">On the rest of the 2021 season, which the model never saw, it picked the right group in 66% of 496 real matchups. Raw stats picked right 61% of the time.</div>
+</div>
+""")
+
+PLOT = dict(font=dict(family="Barlow, sans-serif", color=INK), paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="#FFFFFF", margin=dict(t=40, b=10, l=10, r=10),
+            legend=dict(orientation="h", y=1.12, x=0))
+
+tab_sim, tab_cov, tab_mates, tab_grav, tab_method = st.tabs(
+    ["Head to head", "Coverage fit", "Teammate effects", "Defender attention", "How it works"])
 
 with tab_sim:
-    diff = sa["game_yards"] - sb["game_yards"]
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Group A yards / game", f"{sa['game_yards'].mean():.0f}")
-    m2.metric("Group B yards / game", f"{sb['game_yards'].mean():.0f}")
-    m3.metric("Chance A out-gains B", f"{(diff > 0).mean():.0%}")
-    st.caption("Track record: on 2021 weeks 9–18, which the model never saw, this simulator picked the right winner in 66% of 496 real team-vs-team receiving matchups (raw stats: 61%).")
     lo, hi = np.percentile(diff, [10, 90])
-    st.write(f"Across {n_games:,} simulated games of {attempts} attempts, A's margin over B runs from "
-             f"**{lo:+.0f}** to **{hi:+.0f}** yards in 80% of games (median {np.median(diff):+.0f}).")
-
+    st.markdown(f"In most simulated games (80 of every 100) Group A finishes between **{lo:+.0f}** and "
+                f"**{hi:+.0f}** yards against Group B. The middle result is {np.median(diff):+.0f}.")
     fig = go.Figure()
     for k, s in (("A", sa), ("B", sb)):
         fig.add_histogram(x=s["game_yards"], name=f"Group {k}", opacity=0.6, marker_color=COLORS[k], nbinsx=60)
-    fig.update_layout(barmode="overlay", height=340, margin=dict(t=30, b=10),
-                      title="Simulated receiving yards per game", xaxis_title="yards", yaxis_title="games")
+    fig.update_layout(barmode="overlay", height=340, title="Receiving yards per simulated game",
+                      xaxis_title="Yards", yaxis_title="Games", **PLOT)
     st.plotly_chart(fig, width="stretch")
 
     def share_table(lineup, s):
-        t = summ.set_index("nflId").loc[[i for i, _ in lineup], ["name", "pos", "team", "routes", "targets", "yprr"]]
-        t["sim target share"] = (s["per_player"]["share"].to_numpy() * 100).round(0).astype(int).astype(str) + "%"
-        t["sim yds/game"] = s["per_player"]["yards_per_game"].to_numpy().round(1)
-        return t.rename(columns={"yprr": "real yds/route"}).round(2).reset_index(drop=True)
+        t = s_idx.loc[[i for i, _ in lineup], ["name", "pos", "team", "routes", "targets", "yprr"]]
+        t["Share of targets in sim"] = (s["per_player"]["share"].to_numpy() * 100).round(0).astype(int).astype(str) + "%"
+        t["Yards per game in sim"] = s["per_player"]["yards_per_game"].to_numpy().round(1)
+        return t.rename(columns={"name": "Player", "pos": "Pos", "team": "Team", "routes": "Routes",
+                                 "targets": "Targets", "yprr": "Real yards per route"}).round(2).reset_index(drop=True)
 
     c1, c2 = st.columns(2)
     c1.dataframe(share_table(lineup_a, sa), hide_index=True)
     c2.dataframe(share_table(lineup_b, sb), hide_index=True)
-    st.caption("Target share competes: five high-volume receivers can't all keep their real-team share, "
-               "so each player's simulated volume reflects who else is on the field.")
+    st.caption("Only one player can catch each pass. Put five high-volume receivers together and each gets "
+               "fewer targets than he did on his real team, which is why the shares above differ from real usage.")
 
 with tab_cov:
-    st.write("How each group's output moves as the defense shifts from all-zone to all-man. A flat line means "
-             "the group's players beat different coverages, so a defense can't take it away with one call.")
+    st.markdown("This chart shows how each group holds up as the defense moves from all zone to all man "
+                "coverage. A flat line means the group has answers for both, so one coverage call can't shut it down.")
     grid = np.linspace(0, 1, 6)
     sweep = pd.DataFrame({k: [simulate(prof, lu, p, 3000, attempts, seed=3)["game_yards"].mean() for p in grid]
                           for k, lu in (("A", lineup_a), ("B", lineup_b))}, index=grid)
@@ -99,18 +174,18 @@ with tab_cov:
     for k in ("A", "B"):
         fig.add_scatter(x=grid * 100, y=sweep[k], mode="lines+markers", name=f"Group {k}",
                         line=dict(color=COLORS[k], width=3))
-    fig.update_layout(height=340, margin=dict(t=30, b=10), xaxis_title="% of snaps in man coverage",
-                      yaxis_title="simulated yards / game", title="Coverage fit")
+    fig.update_layout(height=340, xaxis_title="Share of snaps in man coverage (%)",
+                      yaxis_title="Yards per game", title="Yards per game by coverage mix", **PLOT)
     st.plotly_chart(fig, width="stretch")
     worst = sweep.min()
-    st.write(f"Worst-case yards/game: **A {worst.A:.0f}**, **B {worst.B:.0f}**. "
-             f"Swing from zone to man: A {sweep.A.iloc[-1] - sweep.A.iloc[0]:+.0f}, "
-             f"B {sweep.B.iloc[-1] - sweep.B.iloc[0]:+.0f}.")
+    st.markdown(f"Against its worst coverage mix, Group A gains **{worst.A:.0f}** yards per game and Group B "
+                f"gains **{worst.B:.0f}**. Moving from all zone to all man changes A by "
+                f"{sweep.A.iloc[-1] - sweep.A.iloc[0]:+.0f} yards and B by {sweep.B.iloc[-1] - sweep.B.iloc[0]:+.0f}.")
 
-with tab_inter:
-    st.write("Real teammate interplay we *can* measure: does a WR produce more per route when his tight end "
-             "releases into a route or when the TE stays in to block? Compared within the same WR, so WR quality "
-             "cancels out.")
+with tab_mates:
+    st.markdown("Do teammates make each other better? We checked six ways and set the pass mark before "
+                "looking at any result. Teammates do change how open a receiver gets, but none of the effects "
+                "showed up in catches or yards, so the simulator leaves them out.")
     wr = routes[(routes.pos == "WR") & routes.te_role.isin(["route", "block"])]
     g = wr.groupby(["nflId", "te_role"]).agg(n=("yards", "size"), yds=("yards", "sum"), tg=("targeted", "sum"))
     g["yprr"], g["tprr"] = g.yds / g.n, g.tg / g.n
@@ -121,27 +196,30 @@ with tab_inter:
     rng = np.random.default_rng(0)
     boot = np.array([rng.choice(d_y, d_y.size).mean() for _ in range(2000)])
     lo, hi = np.percentile(boot, [5, 95])
+    st.markdown("#### When the tight end stays in to block")
     c1, c2, c3 = st.columns(3)
-    c1.metric("WRs compared", len(w))
-    c2.metric("Δ yards/route when TE blocks", f"{d_y.mean():+.2f}", help="90% bootstrap interval in text")
-    c3.metric("Δ targets/route when TE blocks", f"{d_t.mean() * 100:+.1f} pts")
-    st.write(f"90% interval for the yards/route change: **{lo:+.2f} to {hi:+.2f}**. "
-             "Reading: most of the gain is volume. With one fewer route runner, each WR's target share rises, "
-             "which is the same target competition the simulator models. It also mixes in situation (TEs stay in "
-             "more on obvious passing downs), so treat it as a hypothesis, not a measured synergy coefficient.")
-    st.subheader("Five more interplay tests from tracking data (bars set before running)")
-    st.write("Each row passes only if its 90% game-bootstrap interval excludes zero in the expected direction. "
-             "Teammates do change **separation**: a same-side deep route clears about 1.1 yd for underneath "
-             "receivers, and bunch/stack alignments add 0.44 yd vs man. But none of the effects reaches "
-             "**catches or yards**, and pair-specific with/without effects are not stable week to week. "
-             "That is why the simulator models target competition and coverage fit, not synergy.")
-    it = pd.read_csv("data/interplay_tests.csv")
-    st.dataframe(it[["test", "metric", "estimate", "ci_lo", "ci_hi", "n", "passed"]], hide_index=True)
-    fig = go.Figure(go.Histogram(x=d_y, nbinsx=30, marker_color="#6b7a8f"))
+    c1.metric("Receivers compared", len(w))
+    c2.metric("Change in yards per route", f"{d_y.mean():+.2f}")
+    c3.metric("Change in targets per route", f"{d_t.mean() * 100:+.1f} pts")
+    st.markdown(f"Each receiver is compared with himself, so his talent cancels out. He gains {d_y.mean():+.2f} "
+                f"yards per route (90% range {lo:+.2f} to {hi:+.2f}) when his tight end blocks, mostly because "
+                "one fewer route runner leaves more targets for him. Tight ends also stay in more on obvious "
+                "passing downs, so part of the gain comes from the situation.")
+    fig = go.Figure(go.Histogram(x=d_y, nbinsx=30, marker_color=TURF))
     fig.add_vline(x=0, line_dash="dash")
-    fig.update_layout(height=300, margin=dict(t=30, b=10), title="Per-WR change in yards/route (TE blocks − TE routes)",
-                      xaxis_title="yards per route", yaxis_title="WRs")
+    fig.update_layout(height=280, title="Change in each receiver's yards per route when his TE blocks",
+                      xaxis_title="Yards per route", yaxis_title="Receivers", **PLOT)
     st.plotly_chart(fig, width="stretch")
+    st.markdown("#### Five tests from the tracking data")
+    st.markdown("A test passes when its 90% range sits entirely above zero. A deep route on the same side "
+                "frees underneath receivers by about 1.1 yards, and bunched alignments add about 0.4 yards "
+                "against man coverage. Neither changed catches or yards, and a player's results with or "
+                "without a specific teammate did not repeat from one set of weeks to the next.")
+    it = pd.read_csv("data/interplay_tests.csv")
+    st.dataframe(it[["test", "metric", "estimate", "ci_lo", "ci_hi", "n", "passed"]].rename(columns={
+        "test": "Test", "metric": "What we measured", "estimate": "Estimate", "ci_lo": "90% low",
+        "ci_hi": "90% high", "n": "Sample", "passed": "Passed"}), hide_index=True)
+
 
 @st.cache_resource
 def gravity_table():
@@ -150,52 +228,54 @@ def gravity_table():
 
 with tab_grav:
     gc = pd.read_csv("data/gravity_checks.csv").iloc[0]
-    st.write("**Gravity** = coverage defenders who are closest to this receiver at the moment of the throw, "
-             "minus the number expected for his position, depth, alignment and number of route runners "
-             "(tracking data, per route, shrunk toward 0). High gravity = the defense leans toward him.")
-    st.write(f"We tested whether gravity is real interplay before putting it in the simulator. It did not pass: "
-             f"odd-week vs even-week gravity correlates only r = {gc.stability_r:.2f} ({int(gc.stability_players)} players; "
-             f"bar was 0.30), and teammates' gravity does **not** raise a receiver's separation at the throw "
-             f"({gc.spill_coef:+.2f} yd per unit, 90% CI {gc.spill_lo:+.2f} to {gc.spill_hi:+.2f}). "
-             "So it is shown here as a description of how defenses played these receivers, not as a synergy input.")
+    st.markdown("At the moment of the throw, we count the coverage defenders closer to each receiver than to "
+                "any other route runner, then subtract what's normal for his position, depth and alignment. "
+                "A high number means defenses leaned toward him.")
+    st.markdown(f"It describes how defenses played these receivers but doesn't predict much. A player's number "
+                f"in odd weeks matches his even weeks only loosely (r = {gc.stability_r:.2f}), and having "
+                f"high-attention teammates didn't get a receiver more open ({gc.spill_coef:+.2f} yards, 90% range "
+                f"{gc.spill_lo:+.2f} to {gc.spill_hi:+.2f}). The simulator doesn't use it.")
     gt = gravity_table()
     picked = [i for i, _ in lineup_a + lineup_b]
     show = gt[(gt.routes >= 100) | gt.index.isin(picked)].sort_values("gravity", ascending=False)
     show = show.assign(group=["A" if i in dict(lineup_a) else ("B" if i in dict(lineup_b) else "") for i in show.index])
-    st.dataframe(show[["name", "pos", "team", "routes", "gravity", "group"]].round(3), hide_index=True, height=420)
-
+    st.dataframe(show[["name", "pos", "team", "routes", "gravity", "group"]].round(3).rename(columns={
+        "name": "Player", "pos": "Pos", "team": "Team", "routes": "Routes", "gravity": "Extra defenders drawn",
+        "group": "Your group"}), hide_index=True, height=420)
 
 with tab_method:
     v = pd.read_csv("data/validation.csv")
     vp = pd.read_csv("data/validation_players.csv")
-    st.markdown(f"""
-**Per simulated attempt:** draw coverage (man/zone), pick a target in proportion to each player's targets per
-route, draw a catch from his catch rate, then draw yards from his real receptions blended with his position's
-league pool. All three are split by man vs zone and shrunk toward the position average
-(60 routes / 20 targets / 15 receptions of league-average prior), because no player has more than ~42 targets.
-
-**Head-to-head check (fit weeks 1–8, test 2021 weeks 9–18 from public nflverse play-by-play):** each team's
-real 1 RB / 1 TE / 3 WR group in weeks 9–18; does the method pick the group that gained more, across 496 matchups?
-""")
     vh = pd.read_csv("data/validation_h2h.csv")
-    st.dataframe(vh.assign(pick_winner_accuracy=(vh.pick_winner_accuracy * 100).round(1).astype(str) + "%").round(2),
-                 hide_index=True)
-    st.markdown("""**Player check (same split):**
-""")
     vl = pd.read_csv("data/validation_late.csv")
-    st.dataframe(vl.rename(columns={"raw_r": "raw rates r", "shrunk_r": "shrunk model r"}).round(2), hide_index=True)
-    st.markdown(f"""
-Outcome: receiving yards per team pass attempt in games with a target (nflverse has no routes). Shrinkage
-matters most for low-sample players, which is where scouts need help.
+    st.markdown("""
+#### How a simulated pass works
+Each pass, the defense calls man or zone. The quarterback picks one of the five players in proportion to how
+often that player is targeted per route, the player catches it at his own catch rate, and the yards come from
+his real catches mixed with his position's league-wide catches. Every rate is split by man and zone.
 
-**Short check (fit weeks 1–5, test weeks 6–8):**
-- Player yards per route: shrunk profiles r = **{vp.shrunk[0]:.2f}** vs raw rates r = {vp.raw[0]:.2f}
-  ({vp.players[0]} players with 40+ test routes). Shrinkage helps; week-to-week receiving is noisy.
-- Team yards per attempt: simulator r = **{np.corrcoef(v.sim_ypa, v.actual_ypa)[0, 1]:.2f}** vs the team's own
-  weeks 1–5 rate r = {np.corrcoef(v.naive_ypa, v.actual_ypa)[0, 1]:.2f} ({len(v)} teams). The simulator holds QB
-  and line constant on purpose, so it explains less of real team output than a number that bakes in the QB.
+No player has more than about 42 targets in these eight weeks, so small samples are pulled toward the position
+average. A player with few routes looks close to average, and a player with many looks like himself.
 
-**Limits:** passing plays only (the dataset has no runs); 8 weeks; each player's numbers still carry his real
-QB and scheme; no route-type labels; interplay between players who never shared a field is not measured.
+#### Does it predict anything?
+We built every player from weeks 1–8 and tested on 2021 weeks 9–18, which the model never saw. For each team we
+took its real running back, tight end and three receivers from those later weeks, then asked who would gain more
+in all 496 pairings.
 """)
-    st.dataframe(v.round(2), hide_index=True)
+    st.dataframe(vh.assign(pick_winner_accuracy=(vh.pick_winner_accuracy * 100).round(1).astype(str) + "%").round(2)
+                 .rename(columns={"method": "Method", "pick_winner_accuracy": "Picked the winner", "pairs": "Matchups",
+                                  "r": "Correlation"}), hide_index=True)
+    st.markdown("The same split for single players. The pull toward the average matters most for players with "
+                "fewer than 100 routes, where raw stats predict almost nothing:")
+    st.dataframe(vl.rename(columns={"group": "Players", "players": "Count", "raw_r": "Raw stats",
+                                    "shrunk_r": "Our model"}).round(2), hide_index=True)
+    st.markdown(f"""
+A shorter test (weeks 1–5 to predict 6–8) points the same way for players (model r = {vp.shrunk[0]:.2f},
+raw stats {vp.raw[0]:.2f}). At team level over those three weeks, a team's own earlier passing numbers did
+better ({np.corrcoef(v.naive_ypa, v.actual_ypa)[0, 1]:.2f} vs {np.corrcoef(v.sim_ypa, v.actual_ypa)[0, 1]:.2f})
+because they include the quarterback, which the simulator leaves out on purpose.
+
+#### What it can't tell you
+The data covers passing plays only, from eight weeks. Each player's numbers still reflect his real quarterback
+and offense. There are no route labels, and we can't measure chemistry between players who never shared a field.
+""")
