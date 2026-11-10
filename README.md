@@ -42,6 +42,19 @@ The nflverse file is public: `https://github.com/nflverse/nflverse-data/releases
 
 The simulator loses to the naive team baseline on purpose. It removes the QB and line, which drive real team output, so that receiver groups can be compared on equal terms. Simulated yards per attempt run higher than real (8.4 vs 6.9) because every simulated attempt goes to one of the five players, with no throwaways or targets to anyone else.
 
+### What we tried and dropped
+
+We tested two public nflverse sources as extra inputs for predicting weeks 6–8 player yards per route. The test used leave-one-out regression on 127 players, and we set the bar beforehand at a clear gain over the baseline. Neither source cleared it, so neither is in the model.
+
+| Inputs | Leave-one-out r |
+| --- | --- |
+| Shrunk 2021 weeks 1–5 profile (baseline) | 0.284 |
+| + player's 2020 yards per team pass attempt | 0.288 |
+| + NGS average separation, weeks 1–5 (WR/TE only) | 0.298 |
+| All three | 0.293 |
+
+The bottleneck is the outcome: three weeks of routes per player is a noisy target. Adding inputs doesn't fix that.
+
 ## Assumptions and limits
 
 - The data has passing plays only (no runs), from weeks 1–8 of 2021.
