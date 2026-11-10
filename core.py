@@ -110,4 +110,5 @@ def simulate(prof: dict, lineup, p_man: float = 0.3, n_games: int = 10000,
         "share": np.bincount(tgt, minlength=len(lineup)) / n,
         "yards_per_game": np.bincount(tgt, weights=yards, minlength=len(lineup)) / n_games,
     })
-    return {"game_yards": game, "per_player": per_player, "ypa": yards.mean()}
+    return {"game_yards": game, "per_player": per_player, "ypa": yards.mean(),
+            "target": tgt.reshape(n_games, attempts), "yards": yards.reshape(n_games, attempts)}

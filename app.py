@@ -120,7 +120,7 @@ with hero:
 <div class="hero">
 <h1>Receiver Group Lab</h1>
 <p>Build two receiving groups from any 2021 teams and play them against the same average quarterback.
-The ball sits where {n_games:,} simulated games put it: the further it drives toward a group's opponent, the more often that group gained more yards.</p>
+We played them {n_games:,} times. The ball moves toward B's end zone the more often Group A gains more yards, and toward A's end zone when Group B does.</p>
 <div class="score">
 <div><div class="side">Group A yards per game</div><div class="num">{sa['game_yards'].mean():.0f}</div></div>
 <div class="mid"><div class="side">Group A gains more in</div><div class="num">{p_a:.0%}</div></div>
@@ -140,7 +140,58 @@ PLOT = dict(font=dict(family="Barlow, sans-serif", color=INK), paper_bgcolor="rg
 tab_sim, tab_cov, tab_mates, tab_grav, tab_method = st.tabs(
     ["Head to head", "Coverage fit", "Teammate effects", "Defender attention", "How it works"])
 
+def replay_figure(seed: int) -> go.Figure:
+    """One simulated game, pass by pass, as a Plotly animation."""
+    games = {k: simulate(prof, lu, p_man, 1, attempts, seed=seed + i)
+             for i, (k, lu) in enumerate((("A", lineup_a), ("B", lineup_b)))}
+    lineups = {"A": lineup_a, "B": lineup_b}
+    plays = {}
+    for k, g in games.items():
+        names = [s_idx.loc[i, "name"].split(" ", 1)[-1] for i, _ in lineups[k]]
+        t, y = g["target"][0], g["yards"][0]
+        plays[k] = dict(cum=np.cumsum(y), text=[f"{names[a]} +{v:.0f}" if v else f"{names[a]} incomplete"
+                                                 for a, v in zip(t, y)])
+    top = max(plays["A"]["cum"][-1], plays["B"]["cum"][-1]) * 1.12 + 10
+
+    def traces(n):
+        out = []
+        for k in ("A", "B"):
+            c = plays[k]["cum"][:n]
+            out.append(go.Scatter(x=np.arange(1, n + 1), y=c, mode="lines+markers+text", name=f"Group {k}",
+                                  line=dict(color=COLORS[k], width=4, shape="hv"),
+                                  marker=dict(size=[0] * (n - 1) + [14], color=COLORS[k]),
+                                  text=[""] * (n - 1) + [plays[k]["text"][n - 1]], textposition="top left",
+                                  textfont=dict(color=COLORS[k], size=13)))
+        return out
+
+    frames = [go.Frame(data=traces(n), name=str(n), layout=go.Layout(
+        title=f"Pass {n}: A {plays['A']['cum'][n - 1]:.0f} yards, B {plays['B']['cum'][n - 1]:.0f} yards"))
+        for n in range(1, attempts + 1)]
+    fig = go.Figure(data=traces(1), frames=frames)
+    fig.update_layout(
+        height=380, xaxis=dict(range=[0.5, attempts + 0.5], title="Pass number"),
+        yaxis=dict(range=[0, top], title="Receiving yards so far"),
+        title="Press play to watch one simulated game",
+        updatemenus=[dict(type="buttons", direction="left", x=0, y=-0.2, xanchor="left", showactive=False, buttons=[
+            dict(label="▶ Play", method="animate",
+                 args=[None, dict(frame=dict(duration=220, redraw=True), transition=dict(duration=120),
+                                  fromcurrent=True, mode="immediate")]),
+            dict(label="Pause", method="animate",
+                 args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])])],
+        **PLOT)
+    fig.update_layout(legend=dict(orientation="h", x=1, xanchor="right", y=1.02, yanchor="bottom"))
+    return fig
+
+
 with tab_sim:
+    st.markdown("#### Watch one game")
+    if "game_seed" not in st.session_state:
+        st.session_state.game_seed = 100
+    if st.button("Play another game"):
+        st.session_state.game_seed += 2
+    st.plotly_chart(replay_figure(st.session_state.game_seed), width="stretch")
+    st.caption("This is a single game, so luck matters: either group can win any one game. "
+               "The 10,000-game numbers above and the chart below show how often each side comes out ahead.")
     lo, hi = np.percentile(diff, [10, 90])
     st.markdown(f"In most simulated games (80 of every 100) Group A finishes between **{lo:+.0f}** and "
                 f"**{hi:+.0f}** yards against Group B. The middle result is {np.median(diff):+.0f}.")
