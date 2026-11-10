@@ -80,6 +80,7 @@ st.html("""
 <h1>Receiver Group Lab</h1>
 <p>Build two receiving groups from any 2021 teams, then press Kick off. We play them 10,000 times against the
 same average quarterback and show which group gains more yards, and how often.</p>
+<div class="fieldnote">Track record: on the rest of the 2021 season, which the model never saw, it picked the right group in 66% of 496 real matchups. Raw stats picked right 61% of the time.</div>
 </div>
 """)
 
@@ -148,7 +149,6 @@ and toward A's end zone when Group B does.</p>
 <div class="field" role="img" aria-label="Group A gains more yards in {p_a:.0%} of simulated games">
 <div class="ez a">A</div><div class="ez b">B</div><div class="ball" style="--to:{to:.1f}%"></div>
 </div>
-<div class="fieldnote">On the rest of the 2021 season, which the model never saw, it picked the right group in 66% of 496 real matchups. Raw stats picked right 61% of the time.</div>
 </div>
 """)
 if st.session_state.pop("scroll_to_result", False):
