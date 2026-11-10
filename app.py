@@ -65,6 +65,7 @@ with tab_sim:
     m1.metric("Group A yards / game", f"{sa['game_yards'].mean():.0f}")
     m2.metric("Group B yards / game", f"{sb['game_yards'].mean():.0f}")
     m3.metric("Chance A out-gains B", f"{(diff > 0).mean():.0%}")
+    st.caption("Track record: on 2021 weeks 9–18, which the model never saw, this simulator picked the right winner in 66% of 496 real team-vs-team receiving matchups (raw stats: 61%).")
     lo, hi = np.percentile(diff, [10, 90])
     st.write(f"Across {n_games:,} simulated games of {attempts} attempts, A's margin over B runs from "
              f"**{lo:+.0f}** to **{hi:+.0f}** yards in 80% of games (median {np.median(diff):+.0f}).")
@@ -173,7 +174,13 @@ route, draw a catch from his catch rate, then draw yards from his real reception
 league pool. All three are split by man vs zone and shrunk toward the position average
 (60 routes / 20 targets / 15 receptions of league-average prior), because no player has more than ~42 targets.
 
-**Main held-out check (fit weeks 1–8, test 2021 weeks 9–18 from public nflverse play-by-play):**
+**Head-to-head check (fit weeks 1–8, test 2021 weeks 9–18 from public nflverse play-by-play):** each team's
+real 1 RB / 1 TE / 3 WR group in weeks 9–18; does the method pick the group that gained more, across 496 matchups?
+""")
+    vh = pd.read_csv("data/validation_h2h.csv")
+    st.dataframe(vh.assign(pick_winner_accuracy=(vh.pick_winner_accuracy * 100).round(1).astype(str) + "%").round(2),
+                 hide_index=True)
+    st.markdown("""**Player check (same split):**
 """)
     vl = pd.read_csv("data/validation_late.csv")
     st.dataframe(vl.rename(columns={"raw_r": "raw rates r", "shrunk_r": "shrunk model r"}).round(2), hide_index=True)

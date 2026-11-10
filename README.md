@@ -1,6 +1,6 @@
 # Receiver Group Lab
 
-**Receiver Group Lab is a Streamlit tool that lets a scout build two pass-catching groups (1 RB, 1 TE, 3 WR) from any 2021 NFL teams and simulate them head to head, holding QB and protection constant, over 10,000 Monte Carlo games.** Each player's targets per route, catch rate and yards per catch come from NFL Big Data Bowl PFF route data joined to public nflverse play-by-play. These rates are split by man vs zone coverage and shrunk toward the position average, because no player has more than about 42 targets in weeks 1–8. The insight for scouts is that a group's value depends on who else is on the field: stacking high-volume receivers dilutes each one's targets, and the *Coverage fit* view shows which groups hold up when the defense switches between man and zone. On data the model never saw (fit weeks 1–8, test 2021 weeks 9–18 from nflverse), shrunk player profiles predict later production far better than raw rates (r = 0.61 vs 0.36, 239 players), and the gap is widest for low-sample players (0.34 vs 0.03). The main limits are that the data has only passing plays and 8 weeks, each player's numbers still carry his real QB and scheme, and interplay between players who never shared a field cannot be measured.
+**Receiver Group Lab is a Streamlit tool that lets a scout build two pass-catching groups (1 RB, 1 TE, 3 WR) from any 2021 NFL teams and simulate them head to head, holding QB and protection constant, over 10,000 Monte Carlo games.** Each player's targets per route, catch rate and yards per catch come from NFL Big Data Bowl PFF route data joined to public nflverse play-by-play. These rates are split by man vs zone coverage and shrunk toward the position average, because no player has more than about 42 targets in weeks 1–8. The insight for scouts is that a group's value depends on who else is on the field: stacking high-volume receivers dilutes each one's targets, and the *Coverage fit* view shows which groups hold up when the defense switches between man and zone. On the rest of the 2021 season (weeks 9–18, which the model never saw), the simulator picks the group with more receiving yards in 66% of the 496 team-vs-team matchups. That beats raw stats (61%) and ties each team's own passing rate (66%), even though the simulator knows nothing about the QB; its player profiles also beat raw rates (r = 0.61 vs 0.36, 239 players). The main limits are that the data has only passing plays and 8 weeks, each player's numbers still carry his real QB and scheme, and interplay between players who never shared a field cannot be measured.
 
 ## Run it
 
@@ -14,7 +14,8 @@ streamlit run app.py
 ```bash
 python build_data.py <path to BDB data dir> <path to nflverse play_by_play_2021.csv.gz>
 python validate.py   # weeks 1-5 -> 6-8 checks
-python validate_late.py <nflverse play_by_play_2021.csv.gz>   # weeks 1-8 -> 9-18 check
+python validate_late.py <nflverse play_by_play_2021.csv.gz>   # weeks 1-8 -> 9-18 player check
+python validate_h2h.py <nflverse play_by_play_2021.csv.gz>    # weeks 1-8 -> 9-18 head-to-head check
 python build_gravity.py <path to BDB data dir>   # throw-frame geometry from tracking -> data/route_frames.csv
 python gravity.py    # gravity stability and spillover checks -> data/gravity_checks.csv
 python build_frames.py <path to BDB data dir>   # snap-to-throw frames for the interplay tests
@@ -41,7 +42,15 @@ The nflverse file is public: `https://github.com/nflverse/nflverse-data/releases
 
 ## Validation
 
-**Main test: fit on weeks 1–8, test on 2021 weeks 9–18** (`validate_late.py`, public nflverse play-by-play). nflverse has no routes, so the outcome is receiving yards per team pass attempt in games where the player drew a target. Players need 5 or more such games.
+**Head-to-head test: fit on weeks 1–8, test on 2021 weeks 9–18** (`validate_h2h.py`). Each team's group is its most-targeted RB, TE and 3 WRs in weeks 9–18. The actual outcome is those five players' receiving yards per team pass attempt. For all 496 pairs of teams, we check whether each method picks the group that gained more.
+
+| Method (weeks 1–8 data only) | Picks the winner | r with actual (32 teams) |
+| --- | --- | --- |
+| **Simulator** | **66.1%** | **0.49** |
+| Raw weeks 1–8 yards per route of the same five, summed | 61.1% | 0.32 |
+| Team's own weeks 1–8 rate (includes its QB) | 66.3% | 0.48 |
+
+**Player test: fit on weeks 1–8, test on 2021 weeks 9–18** (`validate_late.py`, public nflverse play-by-play). nflverse has no routes, so the outcome is receiving yards per team pass attempt in games where the player drew a target. Players need 5 or more such games.
 
 | Players | Raw weeks 1–8 yards/route r | Shrunk model r |
 | --- | --- | --- |

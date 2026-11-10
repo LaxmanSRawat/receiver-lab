@@ -1,0 +1,4 @@
+method,pick_winner_accuracy,pairs,r
+simulator (weeks 1-8 profiles),0.6612903225806451,496,0.4849586341389828
+"raw weeks 1-8 yards/route, summed",0.6108870967741935,496,0.3228452284595819
+team's own weeks 1-8 rate (includes QB),0.6633064516129032,496,0.4781809884122544
