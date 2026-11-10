@@ -52,6 +52,8 @@ We built every player from weeks 1–8 and tested on weeks 9–18 of the same se
 | Raw yards per route of the same five players, added up | 61.1% | 0.32 |
 | The team's own earlier passing numbers, which include its quarterback | 66.3% | 0.48 |
 
+We also checked how many simulated games each matchup needs, running each count five times with different random seeds. With 10 games the simulator picked the winner 61.6% of the time on average (54.8% to 64.9% across runs), and with 100 games 62.2%. At 1,000 games it reached 65.9% (64.7% to 67.3%), and 10,000 games gave the same 65.9% with a tighter spread (65.5% to 66.5%). Past about 1,000 games, extra games only make the answer more stable. The app uses 10,000 so the "gains more in" figure barely moves between runs.
+
 The simulator matches a baseline that knows the quarterback, even though it leaves the quarterback out on purpose so that groups from different teams can be compared fairly.
 
 The same split works for single players. Because nflverse has no route data, the outcome here is receiving yards per team pass attempt in games where the player was targeted, for players with at least five such games.
