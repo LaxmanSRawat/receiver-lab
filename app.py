@@ -9,6 +9,7 @@ import streamlit.components.v1 as components
 
 from core import build_profiles, load_routes, player_summary, simulate
 from gravity import load_frames, player_gravity
+import playsim
 
 st.set_page_config(page_title="What if...?", page_icon="🏈", layout="wide")
 
@@ -164,6 +165,11 @@ PLOT = dict(font=dict(family="Barlow, sans-serif", color=INK), paper_bgcolor="rg
 tab_sim, tab_cov, tab_mates, tab_grav, tab_method = st.tabs(
     ["Head to head", "Coverage fit", "Teammate effects", "Defender attention", "How it works"])
 
+@st.cache_resource
+def playsim_data():
+    return playsim.load()
+
+
 def replay_figure(seed: int) -> go.Figure:
     """One simulated game, pass by pass, as a Plotly animation."""
     games = {k: simulate(prof, lu, p_man, 1, attempts, seed=seed + i)
@@ -216,6 +222,37 @@ with tab_sim:
     st.plotly_chart(replay_figure(st.session_state.game_seed), width="stretch")
     st.caption("This is a single game, so luck matters: either group can win any one game. "
                "The 10,000-game numbers above and the chart below show how often each side comes out ahead.")
+
+    st.markdown("#### See a pass on the field")
+    st.markdown("Pick a quarterback and a pass from the game above. Your five players run routes they really "
+                "ran in 2021, the quarterback replays one of his real dropbacks, and the ball goes to the player "
+                "the simulation chose on that pass.")
+    sim_data = playsim_data()
+    qbs = sim_data["qbs"][sim_data["qbs"].dropbacks >= 50]
+    q1, q2, q3 = st.columns([2, 1, 2])
+    qb_id = q1.selectbox("Quarterback", qbs.nflId.tolist(), key="ps_qb",
+                         format_func=lambda i: f"{qbs.set_index('nflId').loc[i, 'displayName']} "
+                                               f"({qbs.set_index('nflId').loc[i, 'team']}), "
+                                               f"{qbs.set_index('nflId').loc[i, 'dropbacks']} dropbacks")
+    grp = q2.radio("Group", ["A", "B"], horizontal=True, key="ps_grp")
+    defense = q3.selectbox("Defense", playsim.DEFENSES, index=1, key="ps_def")
+    k = st.slider("Pass number from the game above", 1, attempts, 1, key="ps_pass")
+    lu = lineup_a if grp == "A" else lineup_b
+    g1 = simulate(prof, lu, p_man, 1, attempts, seed=st.session_state.game_seed + (0 if grp == "A" else 1))
+    tgt, yds = int(g1["target"][0][k - 1]), float(g1["yards"][0][k - 1])
+    short = [s_idx.loc[i, "name"].split(" ", 1)[-1] for i, _ in lu]
+    qb_name = qbs.set_index("nflId").loc[qb_id, "displayName"].split(" ", 1)[-1]
+    caption = f"Pass {k}: {short[tgt]} catches it for {yds:.0f} yards" if yds > 0 else \
+        f"Pass {k}: thrown to {short[tgt]}, incomplete"
+    comp = playsim.compose(sim_data, lu, short, qb_id, defense, tgt, yds > 0, yds,
+                           seed=st.session_state.game_seed * 100 + k)
+    st.plotly_chart(playsim.figure(comp, short, qb_name, COLORS[grp], tgt, caption), width="stretch",
+                    key=f"ps_fig_{grp}_{k}_{qb_id}_{defense}_{st.session_state.game_seed}")
+    real_cov = comp["play"].pff_passCoverage
+    st.caption(f"{caption}. Blue line: line of scrimmage. Defenders (x) replay a real {real_cov} snap against "
+               f"this quarterback and don't react to your receivers. Each route comes from a different real play, "
+               "so this shows what the simulated pass could look like, not how these players would move together. "
+               "Tracking stops just after the throw, so the catch point is projected.")
     lo, hi = np.percentile(diff, [10, 90])
     st.markdown(f"In most simulated games (80 of every 100) Group A finishes between **{lo:+.0f}** and "
                 f"**{hi:+.0f}** yards against Group B. The middle result is {np.median(diff):+.0f}.")

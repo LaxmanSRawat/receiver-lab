@@ -38,11 +38,15 @@ The page opens with the result: each group's yards per game and how often Group 
 
 | Tab | What it shows |
 | --- | --- |
-| Head to head | A pass-by-pass replay of one simulated game, the spread of 10,000 games, and each player's share of targets |
+| Head to head | A pass-by-pass replay of one simulated game, an on-field animation of any pass from it, the spread of 10,000 games, and each player's share of targets |
 | Coverage fit | Yards per game as the defense moves from all zone to all man, and each group's worst case |
 | Teammate effects | What happens to receivers when the tight end blocks, and five tracking-data tests of teammate effects |
 | Defender attention | How many extra coverage defenders each receiver drew at the throw |
 | How it works | The model, the validation results and the limits |
+
+## The on-field pass animation
+
+Under the game replay, you can pick a quarterback (57 real QBs) and a defense and watch any simulated pass on the field. Your five players each run a route they really ran in 2021, the quarterback replays one of his real dropbacks, and the defenders replay a real snap of the chosen coverage against that quarterback. The ball goes to whoever the simulation targeted on that pass, and the targeted player's route comes from one of his real targets with a similar result. The routes come from different real plays and the defenders don't react to your receivers, so the animation illustrates a simulated pass; it doesn't predict how these players would move together. Tracking stops half a second after the throw, so the catch point is projected. `build_playsim.py` extracts the paths and `playsim.py` builds the animation.
 
 ## How the simulation works
 
