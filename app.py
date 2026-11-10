@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from core import build_profiles, load_routes, player_summary, simulate
+from gravity import load_frames, player_gravity
 
 st.set_page_config(page_title="Receiver Group Lab", layout="wide")
 COLORS = {"A": "#2a6fdb", "B": "#e4572e"}
@@ -51,8 +52,9 @@ if len(lineup_a) != 5 or len(lineup_b) != 5:
     st.warning("Pick exactly 3 WRs for each group.")
     st.stop()
 
-tab_sim, tab_cov, tab_inter, tab_method = st.tabs(
-    ["Head to head", "Coverage fit", "Interplay: TE route vs block", "Method & validation"])
+tab_sim, tab_cov, tab_inter, tab_grav, tab_method = st.tabs(
+    ["Head to head", "Coverage fit", "Interplay: TE route vs block", "Gravity (tested, not in sim)",
+     "Method & validation"])
 
 sa = simulate(prof, lineup_a, p_man, n_games, attempts, seed=1)
 sb = simulate(prof, lineup_b, p_man, n_games, attempts, seed=2)
@@ -131,6 +133,28 @@ with tab_inter:
     fig.update_layout(height=300, margin=dict(t=30, b=10), title="Per-WR change in yards/route (TE blocks − TE routes)",
                       xaxis_title="yards per route", yaxis_title="WRs")
     st.plotly_chart(fig, width="stretch")
+
+@st.cache_resource
+def gravity_table():
+    return player_gravity(load_frames())
+
+
+with tab_grav:
+    gc = pd.read_csv("data/gravity_checks.csv").iloc[0]
+    st.write("**Gravity** = coverage defenders who are closest to this receiver at the moment of the throw, "
+             "minus the number expected for his position, depth, alignment and number of route runners "
+             "(tracking data, per route, shrunk toward 0). High gravity = the defense leans toward him.")
+    st.write(f"We tested whether gravity is real interplay before putting it in the simulator. It did not pass: "
+             f"odd-week vs even-week gravity correlates only r = {gc.stability_r:.2f} ({int(gc.stability_players)} players; "
+             f"bar was 0.30), and teammates' gravity does **not** raise a receiver's separation at the throw "
+             f"({gc.spill_coef:+.2f} yd per unit, 90% CI {gc.spill_lo:+.2f} to {gc.spill_hi:+.2f}). "
+             "So it is shown here as a description of how defenses played these receivers, not as a synergy input.")
+    gt = gravity_table()
+    picked = [i for i, _ in lineup_a + lineup_b]
+    show = gt[(gt.routes >= 100) | gt.index.isin(picked)].sort_values("gravity", ascending=False)
+    show = show.assign(group=["A" if i in dict(lineup_a) else ("B" if i in dict(lineup_b) else "") for i in show.index])
+    st.dataframe(show[["name", "pos", "team", "routes", "gravity", "group"]].round(3), hide_index=True, height=420)
+
 
 with tab_method:
     v = pd.read_csv("data/validation.csv")

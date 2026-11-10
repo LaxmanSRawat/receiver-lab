@@ -15,6 +15,8 @@ streamlit run app.py
 python build_data.py <path to BDB data dir> <path to nflverse play_by_play_2021.csv.gz>
 python validate.py   # weeks 1-5 -> 6-8 checks
 python validate_late.py <nflverse play_by_play_2021.csv.gz>   # weeks 1-8 -> 9-18 check
+python build_gravity.py <path to BDB data dir>   # throw-frame geometry from tracking -> data/route_frames.csv
+python gravity.py    # gravity stability and spillover checks -> data/gravity_checks.csv
 ```
 
 The nflverse file is public: `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2021.csv.gz`.
@@ -26,6 +28,7 @@ The nflverse file is public: `https://github.com/nflverse/nflverse-data/releases
 | Head to head | Yards per game for each group, the chance A out-gains B, the 80% range of the margin, and each player's simulated target share |
 | Coverage fit | Simulated yards as the defense moves from all zone to all man, and each group's worst case |
 | Interplay: TE route vs block | Within the same WR, yards and targets per route when his TE runs a route vs stays in to block |
+| Gravity (tested, not in sim) | Coverage defenders drawn at the throw, above expected, per receiver, with the checks it failed |
 | Method & validation | Model details, held-out results and limits |
 
 ## Method
@@ -66,10 +69,17 @@ We tested two public nflverse sources as extra inputs for predicting weeks 6–8
 
 The bottleneck is the outcome: three weeks of routes per player is a noisy target. Adding inputs doesn't fix that.
 
+**Receiver gravity as a synergy input (tracking data).** At the throw frame, each PFF coverage defender is assigned to his nearest route runner. A receiver's gravity is the number of defenders he draws minus the number expected for his position, depth, alignment and route-runner count. We set two bars before running: gravity must be stable (odd vs even weeks, r ≥ 0.3), and teammates' gravity must raise a receiver's separation, with a 90% CI that excludes 0. The spillover test used gravity fitted on one half of the weeks and tested on the other. Neither bar was met:
+
+- Stability: r = 0.24 (158 players with 40+ routes in each half).
+- Spillover: −0.41 yards of separation per unit of teammate gravity (90% CI −0.90 to +0.03).
+
+So there is no evidence in 8 weeks that a receiver who draws defenders gets his teammates open at the throw. Gravity is shown in the app as a description and is not used in the simulator.
+
 ## Assumptions and limits
 
 - The data has passing plays only (no runs), from weeks 1–8 of 2021.
 - An average QB and protection are assumed. Coverage is reduced to man vs zone, and "Other" coverage is dropped.
 - Each player's rates still reflect his real team's QB, scheme and play-calling.
 - There are no route-type labels, and tracking stops 0.5 s after the throw.
-- The model does not capture interaction effects between specific players. It only models target competition.
+- The model does not capture interaction effects between specific players. It only models target competition. A tracking-based gravity spillover was tested and not supported (see above).
