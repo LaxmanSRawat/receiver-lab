@@ -1,0 +1,13 @@
+test,metric,estimate,ci_lo,ci_hi,n,passed,note
+1 Clear-out,underneath sep gain (yd) w/ same-side deep teammate,1.105,0.953,1.255,18194,True,
+1 Clear-out,underneath yards/route gain,0.017,-0.141,0.182,18194,False,
+1 Clear-out,targeted underneath catch-rate change,-0.031,-0.072,0.016,3715,False,
+1 Clear-out,targeted underneath yards/target change,-0.205,-0.867,0.491,3715,False,
+1 Clear-out (trait),underneath sep per +1 SD teammates' deep rate,0.081,0.053,0.115,18194,True,
+1 Clear-out (trait),targeted yards per +1 SD teammates' deep rate,-0.207,-0.393,-0.005,3715,False,
+2 Rub/bunch,extra max-separation (yd) from bunch vs man,0.44,0.286,0.618,28285,True,bunch share 10%
+2 Rub/bunch,extra yards/route from bunch vs man,-0.081,-0.487,0.294,28285,False,
+3 Space creation,owned-space share per +1 SD teammates' gravity,-0.004,-0.009,0.001,34815,False,
+4 WOWY,odd-vs-even stability of pair effect (r),0.028,-0.047,0.098,584,False,needs r>0 to be real
+5 Decoy value,odd-vs-even stability of player decoy value (r),0.246,0.12,0.377,146,True,mean decoy 0.017 completion prob per route
+5 Decoy value,target catch-rate change per +1 SD teammates' decoy value,0.001,-0.009,0.01,6846,False,

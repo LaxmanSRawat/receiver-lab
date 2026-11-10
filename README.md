@@ -17,6 +17,8 @@ python validate.py   # weeks 1-5 -> 6-8 checks
 python validate_late.py <nflverse play_by_play_2021.csv.gz>   # weeks 1-8 -> 9-18 check
 python build_gravity.py <path to BDB data dir>   # throw-frame geometry from tracking -> data/route_frames.csv
 python gravity.py    # gravity stability and spillover checks -> data/gravity_checks.csv
+python build_frames.py <path to BDB data dir>   # snap-to-throw frames for the interplay tests
+python interplay_tests.py   # five interplay tests -> data/interplay_tests.csv
 ```
 
 The nflverse file is public: `https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_2021.csv.gz`.
@@ -77,6 +79,19 @@ The bottleneck is the outcome: three weeks of routes per player is a noisy targe
 So there is no evidence in 8 weeks that a receiver who draws defenders gets his teammates open at the throw. Gravity is shown in the app as a description and is not used in the simulator.
 
 **Route-depth complementarity ("high-low" spacing).** This follows NBA lineup work that measures synergy between player *types* instead of pairs, which would apply to players who never played together. We took each route runner's typical depth and width at the throw from the other half of the weeks. We then asked whether groups with more spread gain more yards per attempt than their players' individual expected yards predict, using 7,312 plays and a game-level bootstrap. They don't. Depth spread gave +0.06 yards per attempt per SD (90% CI −0.21 to +0.37), width spread gave +0.01 (−0.19 to +0.23), and the depth-spread × man-coverage interaction gave −0.10 (−0.54 to +0.33).
+
+**Five more interplay tests from tracking data** (`build_frames.py`, then `interplay_tests.py`, results in `data/interplay_tests.csv`). For each test the bar was set before running: a 90% game-bootstrap CI that excludes 0 in the expected direction. As a sanity check, separation does matter: completion is 50% at 1 yd of separation and 67% at 4 yd (6,846 targets).
+
+| Test | Effect on separation | Effect on catches / yards |
+| --- | --- | --- |
+| 1. Clear-out: same-side deep teammate → underneath receiver | **+1.1 yd** (CI +0.95 to +1.26) | catch −3 pts (CI −7 to +2); yards/target −0.2 (CI −0.9 to +0.5) |
+| 1. Clear-out as a player trait (deep-route rate is stable, r = 0.79) | **+0.08 yd per SD** | yards/target −0.21 per SD (wrong sign) |
+| 2. Rub/bunch: aligned within 2 yd of a teammate, vs man | **+0.44 yd** max separation | yards/route −0.08 (CI −0.49 to +0.29) |
+| 3. Space creation: simplified pitch control (AUC 0.73 vs 0.71 for separation) | teammates' gravity −0.004 owned-space share (CI −0.009 to +0.001) | – |
+| 4. WOWY: player with vs without a specific teammate (584 pairs) | – | odd vs even week stability r = 0.03 (CI −0.05 to +0.10) |
+| 5. Decoy value: defenders a receiver keeps off the target | stable-ish trait, r = 0.25 | teammates' catch rate +0.001 per SD (CI −0.009 to +0.010) |
+
+In short, teammates measurably change how open a receiver is, but in 8 weeks that does not show up in catches or yards. Pair-specific "chemistry" is not stable from one set of weeks to the next. Interplay therefore adds no predictive power here, and the simulator models only target competition and coverage fit.
 
 ## Assumptions and limits
 

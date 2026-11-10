@@ -128,6 +128,14 @@ with tab_inter:
              "Reading: most of the gain is volume. With one fewer route runner, each WR's target share rises, "
              "which is the same target competition the simulator models. It also mixes in situation (TEs stay in "
              "more on obvious passing downs), so treat it as a hypothesis, not a measured synergy coefficient.")
+    st.subheader("Five more interplay tests from tracking data (bars set before running)")
+    st.write("Each row passes only if its 90% game-bootstrap interval excludes zero in the expected direction. "
+             "Teammates do change **separation**: a same-side deep route clears about 1.1 yd for underneath "
+             "receivers, and bunch/stack alignments add 0.44 yd vs man. But none of the effects reaches "
+             "**catches or yards**, and pair-specific with/without effects are not stable week to week. "
+             "That is why the simulator models target competition and coverage fit, not synergy.")
+    it = pd.read_csv("data/interplay_tests.csv")
+    st.dataframe(it[["test", "metric", "estimate", "ci_lo", "ci_hi", "n", "passed"]], hide_index=True)
     fig = go.Figure(go.Histogram(x=d_y, nbinsx=30, marker_color="#6b7a8f"))
     fig.add_vline(x=0, line_dash="dash")
     fig.update_layout(height=300, margin=dict(t=30, b=10), title="Per-WR change in yards/route (TE blocks − TE routes)",
