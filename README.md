@@ -76,6 +76,8 @@ The bottleneck is the outcome: three weeks of routes per player is a noisy targe
 
 So there is no evidence in 8 weeks that a receiver who draws defenders gets his teammates open at the throw. Gravity is shown in the app as a description and is not used in the simulator.
 
+**Route-depth complementarity ("high-low" spacing).** This follows NBA lineup work that measures synergy between player *types* instead of pairs, which would apply to players who never played together. We took each route runner's typical depth and width at the throw from the other half of the weeks. We then asked whether groups with more spread gain more yards per attempt than their players' individual expected yards predict, using 7,312 plays and a game-level bootstrap. They don't. Depth spread gave +0.06 yards per attempt per SD (90% CI −0.21 to +0.37), width spread gave +0.01 (−0.19 to +0.23), and the depth-spread × man-coverage interaction gave −0.10 (−0.54 to +0.33).
+
 ## Assumptions and limits
 
 - The data has passing plays only (no runs), from weeks 1–8 of 2021.
