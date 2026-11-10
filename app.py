@@ -100,19 +100,28 @@ def card(nid: int) -> str:
             f'<img class="logo" src="{m.team_logo_espn}" alt="{html.escape(m.team_name)} logo"></div>')
 
 
-def slot(title, pos, idx, key):
+# Opening matchup: the Chiefs' and Falcons' most-used receiving groups in weeks 1-8 (most routes per slot).
+DEFAULTS = {
+    "A": [46526, 40011, 43454, 43415, 47839],  # KC: Darrel Williams, Travis Kelce, Tyreek Hill, Demarcus Robinson, Mecole Hardman
+    "B": [42469, 53433, 46095, 48374, 43429],  # ATL: Mike Davis, Kyle Pitts, Calvin Ridley, Olamide Zaccheaus, Tajae Sharpe
+}
+
+
+def slot(title, pos, default, fallback, key):
     """One position pick with the player's card right under it."""
     options = by_pos[pos]
-    nid = st.selectbox(title, options, index=min(idx, len(options) - 1), format_func=label.get, key=key)
+    idx = options.index(default) if default in options else min(fallback, len(options) - 1)
+    nid = st.selectbox(title, options, index=idx, format_func=label.get, key=key)
     st.html(card(nid))
     return (nid, pos)
 
 
 def picker(col, key, offset):
+    d = DEFAULTS[key]
     with col:
         st.html(f'<div class="grp" style="color:{COLORS[key]}">Group {key}</div>')
-        lineup = [slot("Running back", "RB", offset, f"rb{key}"), slot("Tight end", "TE", offset, f"te{key}")]
-        lineup += [slot(f"Wide receiver {j + 1}", "WR", offset * 3 + j, f"wr{key}{j}") for j in range(3)]
+        lineup = [slot("Running back", "RB", d[0], offset, f"rb{key}"), slot("Tight end", "TE", d[1], offset, f"te{key}")]
+        lineup += [slot(f"Wide receiver {j + 1}", "WR", d[2 + j], offset * 3 + j, f"wr{key}{j}") for j in range(3)]
     return lineup
 
 
